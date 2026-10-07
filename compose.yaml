@@ -1,0 +1,90 @@
+# The media stack around Laterna: Sonarr (series), Radarr (movies) and Prowlarr (indexers), with
+# Gluetun, the VPN that the download clients of the modules go through. Everyone sees DATA_DIR at
+# /data, so that an import is a hardlink or a rename, never a copy (README.md: folders).
+name: laterna-stack
+
+x-servarr: &servarr
+  restart: unless-stopped
+  depends_on:
+    folders:
+      condition: service_completed_successfully
+
+services:
+  # Creates the folders of DATA_DIR that are missing, owned by PUID:PGID, then stops.
+  folders:
+    image: alpine:3
+    command: ["/bin/sh", "/folders.sh"]
+    environment:
+      PUID: ${PUID:-1000}
+      PGID: ${PGID:-1000}
+    volumes:
+      - ./config/folders.sh:/folders.sh:ro
+      - ${DATA_DIR:?set DATA_DIR in .env}:/data
+
+  gluetun:
+    image: qmcgaw/gluetun:v3
+    restart: unless-stopped
+    cap_add:
+      - NET_ADMIN
+    devices:
+      - /dev/net/tun:/dev/net/tun
+    environment:
+      TZ: ${TZ:-UTC}
+    env_file:
+      # The VPN provider and its credentials (vpn.env.example).
+      - path: ./vpn.env
+        required: true
+    volumes:
+      - gluetun:/gluetun
+
+  prowlarr:
+    <<: *servarr
+    image: lscr.io/linuxserver/prowlarr:latest
+    environment:
+      TZ: ${TZ:-UTC}
+      PUID: ${PUID:-1000}
+      PGID: ${PGID:-1000}
+      PROWLARR__AUTH__APIKEY: ${PROWLARR_API_KEY:?set PROWLARR_API_KEY in .env}
+    ports:
+      - "${PROWLARR_PORT:-9696}:9696"
+    volumes:
+      - prowlarr:/config
+
+  sonarr:
+    <<: *servarr
+    image: lscr.io/linuxserver/sonarr:latest
+    environment:
+      TZ: ${TZ:-UTC}
+      PUID: ${PUID:-1000}
+      PGID: ${PGID:-1000}
+      SONARR__AUTH__APIKEY: ${SONARR_API_KEY:?set SONARR_API_KEY in .env}
+    ports:
+      - "${SONARR_PORT:-8989}:8989"
+    volumes:
+      - sonarr:/config
+      - ${DATA_DIR}:/data
+
+  radarr:
+    <<: *servarr
+    image: lscr.io/linuxserver/radarr:latest
+    environment:
+      TZ: ${TZ:-UTC}
+      PUID: ${PUID:-1000}
+      PGID: ${PGID:-1000}
+      RADARR__AUTH__APIKEY: ${RADARR_API_KEY:?set RADARR_API_KEY in .env}
+    ports:
+      - "${RADARR_PORT:-7878}:7878"
+    volumes:
+      - radarr:/config
+      - ${DATA_DIR}:/data
+
+networks:
+  default:
+    # A fixed name, which a Laterna started elsewhere joins (README.md).
+    name: laterna-stack
+
+volumes:
+  gluetun:
+  prowlarr:
+  sonarr:
+  radarr:

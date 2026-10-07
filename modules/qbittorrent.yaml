@@ -1,0 +1,54 @@
+# qBittorrent, all of whose traffic goes through the VPN (Gluetun): if the VPN drops, it is cut
+# off rather than going out in the clear. With a provider that forwards a port (ProtonVPN, PIA),
+# Gluetun gives it to qBittorrent each time it changes. Web page: http://<this machine>:8080; the
+# first password is in "docker compose logs qbittorrent". In Sonarr, Radarr and Lidarr, its
+# address is gluetun:8080.
+services:
+  gluetun:
+    ports:
+      - "${QBITTORRENT_PORT:-8080}:8080"
+    environment:
+      # qBittorrent listens on the port the VPN forwards (Gluetun's example), and lets go of it
+      # when the VPN drops, so that it takes the next one.
+      VPN_PORT_FORWARDING_UP_COMMAND: >-
+        /bin/sh -c 'wget -O- -nv --retry-connrefused --post-data
+        "json={\"listen_port\":{{PORT}},\"current_network_interface\":\"{{VPN_INTERFACE}}\",\"random_port\":false,\"upnp\":false}"
+        http://127.0.0.1:8080/api/v2/app/setPreferences'
+      VPN_PORT_FORWARDING_DOWN_COMMAND: >-
+        /bin/sh -c 'wget -O- -nv --retry-connrefused --post-data
+        "json={\"listen_port\":0,\"current_network_interface\":\"lo\"}"
+        http://127.0.0.1:8080/api/v2/app/setPreferences'
+
+  qbittorrent-init:
+    image: alpine:3
+    command: ["/bin/sh", "/init.sh"]
+    environment:
+      PUID: ${PUID:-1000}
+      PGID: ${PGID:-1000}
+    volumes:
+      - ./config/qbittorrent/init.sh:/init.sh:ro
+      - ./config/qbittorrent/qBittorrent.conf:/defaults/qBittorrent.conf:ro
+      - qbittorrent:/config
+
+  qbittorrent:
+    image: lscr.io/linuxserver/qbittorrent:latest
+    restart: unless-stopped
+    network_mode: service:gluetun
+    depends_on:
+      gluetun:
+        condition: service_healthy
+      qbittorrent-init:
+        condition: service_completed_successfully
+      folders:
+        condition: service_completed_successfully
+    environment:
+      TZ: ${TZ:-UTC}
+      PUID: ${PUID:-1000}
+      PGID: ${PGID:-1000}
+      WEBUI_PORT: "8080"
+    volumes:
+      - qbittorrent:/config
+      - ${DATA_DIR}:/data
+
+volumes:
+  qbittorrent:

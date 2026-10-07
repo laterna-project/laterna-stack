@@ -1,0 +1,17 @@
+# Unpackerr extracts the torrents that come as RAR archives, so that Sonarr, Radarr and Lidarr can
+# import them, then removes the extracted files once imported (the archives keep seeding).
+services:
+  unpackerr:
+    image: golift/unpackerr:0
+    restart: unless-stopped
+    user: "${PUID:-1000}:${PGID:-1000}"
+    environment:
+      TZ: ${TZ:-UTC}
+      UN_SONARR_0_URL: http://sonarr:8989
+      UN_SONARR_0_API_KEY: ${SONARR_API_KEY}
+      UN_SONARR_0_PATHS_0: /data/torrents
+      UN_RADARR_0_URL: http://radarr:7878
+      UN_RADARR_0_API_KEY: ${RADARR_API_KEY}
+      UN_RADARR_0_PATHS_0: /data/torrents
+    volumes:
+      - ${DATA_DIR}:/data

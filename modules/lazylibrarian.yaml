@@ -1,0 +1,22 @@
+# LazyLibrarian, for books (Readarr is no longer maintained): http://<this machine>:5299, with
+# /data/media/books as its library and the download clients of the stack. Prowlarr gives it its
+# indexers once added there.
+services:
+  lazylibrarian:
+    image: lscr.io/linuxserver/lazylibrarian:latest
+    restart: unless-stopped
+    depends_on:
+      folders:
+        condition: service_completed_successfully
+    environment:
+      TZ: ${TZ:-UTC}
+      PUID: ${PUID:-1000}
+      PGID: ${PGID:-1000}
+    ports:
+      - "${LAZYLIBRARIAN_PORT:-5299}:5299"
+    volumes:
+      - lazylibrarian:/config
+      - ${DATA_DIR}:/data
+
+volumes:
+  lazylibrarian:

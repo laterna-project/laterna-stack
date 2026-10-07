@@ -1,0 +1,37 @@
+# SABnzbd, for Usenet: http://<this machine>:8085, where you add your Usenet provider (Usenet goes
+# over TLS: no VPN needed). Downloads land in /data/usenet/complete/<category>. In Sonarr, Radarr
+# and Lidarr, its address is sabnzbd:8080 and its API key SABNZBD_API_KEY.
+services:
+  sabnzbd-init:
+    image: alpine:3
+    command: ["/bin/sh", "/init.sh"]
+    environment:
+      PUID: ${PUID:-1000}
+      PGID: ${PGID:-1000}
+      SABNZBD_API_KEY: ${SABNZBD_API_KEY:?set SABNZBD_API_KEY in .env}
+    volumes:
+      - ./config/sabnzbd/init.sh:/init.sh:ro
+      - sabnzbd:/config
+
+  sabnzbd:
+    image: lscr.io/linuxserver/sabnzbd:latest
+    restart: unless-stopped
+    # Its own name, which SABnzbd accepts in requests from the other containers.
+    hostname: sabnzbd
+    depends_on:
+      sabnzbd-init:
+        condition: service_completed_successfully
+      folders:
+        condition: service_completed_successfully
+    environment:
+      TZ: ${TZ:-UTC}
+      PUID: ${PUID:-1000}
+      PGID: ${PGID:-1000}
+    ports:
+      - "${SABNZBD_PORT:-8085}:8080"
+    volumes:
+      - sabnzbd:/config
+      - ${DATA_DIR}:/data
+
+volumes:
+  sabnzbd:

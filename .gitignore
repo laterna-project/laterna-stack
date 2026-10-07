@@ -1,0 +1,4 @@
+# A deployment's own settings and credentials (README.md)
+/.env
+/vpn.env
+/local.yaml

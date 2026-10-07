@@ -1,0 +1,22 @@
+# Bazarr finds subtitles for what Sonarr and Radarr bring, in the languages you choose, and writes
+# them next to the videos, where Laterna reads them: http://<this machine>:6767. Connect it to
+# sonarr:8989 and radarr:7878 with their API keys (SONARR_API_KEY, RADARR_API_KEY).
+services:
+  bazarr:
+    image: lscr.io/linuxserver/bazarr:latest
+    restart: unless-stopped
+    depends_on:
+      folders:
+        condition: service_completed_successfully
+    environment:
+      TZ: ${TZ:-UTC}
+      PUID: ${PUID:-1000}
+      PGID: ${PGID:-1000}
+    ports:
+      - "${BAZARR_PORT:-6767}:6767"
+    volumes:
+      - bazarr:/config
+      - ${DATA_DIR}:/data
+
+volumes:
+  bazarr:

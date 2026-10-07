@@ -1,0 +1,30 @@
+# For test.sh: a WireGuard server in the stack's network, which Gluetun uses as a "custom"
+# provider, so that the tunnel, its firewall and the clients behind it run for real without an
+# account. It sends the traffic on to the Internet.
+services:
+  vpn-server:
+    image: lscr.io/linuxserver/wireguard:latest
+    cap_add:
+      - NET_ADMIN
+    environment:
+      PUID: ${PUID}
+      PGID: ${PGID}
+      PEERS: "1"
+      SERVERURL: 172.30.99.10
+      INTERNAL_SUBNET: 10.99.0.0
+      ALLOWEDIPS: 0.0.0.0/0
+    volumes:
+      - ./test/wireguard:/config
+    sysctls:
+      net.ipv4.conf.all.src_valid_mark: "1"
+    networks:
+      default:
+        ipv4_address: 172.30.99.10
+
+networks:
+  default:
+    # Not the name of a real stack on the same machine.
+    name: laterna-stack-test
+    ipam:
+      config:
+        - subnet: 172.30.99.0/24

@@ -1,0 +1,25 @@
+# yaml-language-server: $schema=https://schemas.recyclarr.dev/v8/config-schema.json
+# Recyclarr (modules/recyclarr.yaml), RECYCLARR_PROFILES=french: the French profiles of the TRaSH
+# Guides, MULTi.VF (the French dub and the original audio). Series and movies: HD Bluray + WEB.
+# https://trash-guides.info/French-Guide/
+sonarr:
+  series:
+    base_url: http://sonarr:8989
+    api_key: !env_var SONARR_API_KEY
+    quality_definition:
+      type: series
+    quality_profiles:
+      - trash_id: 58e8dc75731040612dd6f4ac0676bfd7 # [French MULTi.VF] HD Bluray + WEB (1080p)
+        reset_unmatched_scores:
+          enabled: true
+
+radarr:
+  movies:
+    base_url: http://radarr:7878
+    api_key: !env_var RADARR_API_KEY
+    quality_definition:
+      type: movie
+    quality_profiles:
+      - trash_id: 500ecc23572575511fd81893777d1e06 # [French MULTi.VF] HD Bluray + WEB
+        reset_unmatched_scores:
+          enabled: true

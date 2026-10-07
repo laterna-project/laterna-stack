@@ -1,0 +1,23 @@
+# Laterna in the stack, reading DATA_DIR/media at /data/media, read only: the paths Sonarr, Radarr
+# and Lidarr use. For HTTPS, single sign-on and the rest, run Laterna from deploy/compose of the
+# server's repository instead, joined to this stack's network (README.md).
+services:
+  laterna:
+    image: ${LATERNA_IMAGE:-ghcr.io/laterna-project/laterna}:${LATERNA_VERSION:-0.5}
+    restart: unless-stopped
+    depends_on:
+      # Otherwise Docker would create DATA_DIR/media itself, owned by root.
+      folders:
+        condition: service_completed_successfully
+    ports:
+      - "${LATERNA_PORT:-8096}:8096"
+    environment:
+      TZ: ${TZ:-UTC}
+    volumes:
+      - laterna-config:/config
+      - laterna-cache:/cache
+      - ${DATA_DIR}/media:/data/media:ro
+
+volumes:
+  laterna-config:
+  laterna-cache:

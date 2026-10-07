@@ -1,0 +1,10 @@
+# FlareSolverr gets through the Cloudflare challenge some indexers put in front of their pages. In
+# Prowlarr: Settings, Indexers, add a FlareSolverr proxy at http://flaresolverr:8191 with a tag,
+# and give that tag to those indexers only.
+services:
+  flaresolverr:
+    image: ghcr.io/flaresolverr/flaresolverr:latest
+    restart: unless-stopped
+    environment:
+      TZ: ${TZ:-UTC}
+      LOG_LEVEL: info
