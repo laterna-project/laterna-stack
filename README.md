@@ -6,7 +6,7 @@ SABnzbd for Usenet, and the modules around them (subtitles, music, books, qualit
 setting that can be chosen in advance is, so that the services find each other with little
 clicking, and a test starts the whole stack, VPN included, on every change.
 
-Laterna itself runs from [`deploy/compose`](https://github.com/laterna-project/laterna/tree/develop/deploy/compose)
+Laterna itself runs from [`deploy/compose`](https://github.com/laterna-project/laterna/tree/main/deploy/compose)
 of its own repository, with what goes around it there (HTTPS, single sign-on, monitoring, update
 notices, backups), and joins this stack's network. Each repository does one thing: Laterna and
 its surroundings there, getting the media here. The tests of each start both together.
@@ -78,13 +78,13 @@ The first start creates the folders of `DATA_DIR` that are missing. Then Laterna
 repository, next to this one:
 
 ```sh
-git clone --depth 1 https://github.com/laterna-project/laterna
+git clone --depth 1 --branch main https://github.com/laterna-project/laterna
 cd laterna/deploy/compose
 cp .env.example .env
 ```
 
 In that `.env`: `MEDIA_DIR` is `DATA_DIR/media`, and the `external-network` module joins this
-stack, plus any module of [`deploy/compose`](https://github.com/laterna-project/laterna/tree/develop/deploy/compose#modules)
+stack, plus any module of [`deploy/compose`](https://github.com/laterna-project/laterna/tree/main/deploy/compose#modules)
 (HTTPS, single sign-on, monitoring...):
 
 ```sh
@@ -191,8 +191,8 @@ their latest release, except Gluetun (v3), Recyclarr (8) and Unpackerr (0). The 
 ## Checking the files
 
 [`test/test.sh`](test/test.sh) checks every module, then starts the whole stack with a WireGuard
-server of its own as the VPN, and Laterna from `deploy/compose` (its `develop` branch, or the
-folder in `LATERNA_COMPOSE`), and checks:
+server of its own as the VPN, and Laterna from `deploy/compose` (of the latest release, the
+server's `main` branch, or the folder in `LATERNA_COMPOSE`), and checks:
 
 - qBittorrent's traffic goes through the tunnel, and nothing goes out once the tunnel stops;
 - Gluetun's port forwarding command sets qBittorrent's port;

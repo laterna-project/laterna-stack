@@ -10,8 +10,8 @@
 #   test/test.sh [config|run]...   (both by default)
 #
 # LATERNA_COMPOSE is the deploy/compose folder to start Laterna from; by default, that of the
-# server repository's develop branch (LATERNA_REF), cloned. LATERNA_IMAGE and LATERNA_VERSION
-# choose another image of Laterna than the one deploy/compose uses.
+# server repository's latest release (its main branch, or LATERNA_REF), cloned. LATERNA_IMAGE
+# and LATERNA_VERSION choose another image of Laterna than the one deploy/compose uses.
 set -eu
 
 here=$(cd "$(dirname "$0")/.." && pwd)
@@ -138,7 +138,7 @@ laterna_up() {
   if [ -n "${LATERNA_COMPOSE:-}" ]; then
     cp -R "$LATERNA_COMPOSE/." laterna
   else
-    git clone -q --depth 1 --branch "${LATERNA_REF:-develop}" https://github.com/laterna-project/laterna laterna-repo
+    git clone -q --depth 1 --branch "${LATERNA_REF:-main}" https://github.com/laterna-project/laterna laterna-repo
     cp -R laterna-repo/deploy/compose/. laterna
   fi
   {
