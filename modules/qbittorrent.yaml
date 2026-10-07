@@ -1,13 +1,26 @@
-# qBittorrent, all of whose traffic goes through the VPN (Gluetun): if the VPN drops, it is cut
-# off rather than going out in the clear. With a provider that forwards a port (ProtonVPN, PIA),
-# Gluetun gives it to qBittorrent each time it changes. Web page: http://<this machine>:8080; the
-# first password is in "docker compose logs qbittorrent". In Sonarr, Radarr and Lidarr, its
-# address is gluetun:8080.
+# qBittorrent behind Gluetun, the VPN: all its traffic goes through the tunnel, and if the tunnel
+# drops it is cut off rather than going out in the clear. The VPN provider and its credentials go
+# in vpn.env (vpn.env.example). With a provider that forwards a port (ProtonVPN, PIA), Gluetun gives
+# it to qBittorrent each time it changes. Web page: http://<this machine>:8080; the first password
+# is in "docker compose logs qbittorrent". In Sonarr, Radarr and Lidarr, its address is
+# gluetun:8080.
 services:
   gluetun:
+    image: qmcgaw/gluetun:v3
+    restart: unless-stopped
+    cap_add:
+      - NET_ADMIN
+    devices:
+      - /dev/net/tun:/dev/net/tun
+    env_file:
+      - path: ./vpn.env
+        required: true
+    volumes:
+      - gluetun:/gluetun
     ports:
       - "${QBITTORRENT_PORT:-8080}:8080"
     environment:
+      TZ: ${TZ:-UTC}
       # qBittorrent listens on the port the VPN forwards (Gluetun's example), and lets go of it
       # when the VPN drops, so that it takes the next one.
       VPN_PORT_FORWARDING_UP_COMMAND: >-
@@ -51,4 +64,5 @@ services:
       - ${DATA_DIR}:/data
 
 volumes:
+  gluetun:
   qbittorrent:

@@ -6,9 +6,10 @@ SABnzbd for Usenet, and the modules around them (subtitles, music, books, qualit
 setting that can be chosen in advance is, so that the services find each other with little
 clicking, and a test starts the whole stack, VPN included, on every change.
 
-Laterna itself is a module here. For HTTPS, single sign-on, monitoring and the rest, run it from
-[`deploy/compose`](https://github.com/laterna-project/laterna/tree/develop/deploy/compose) of the
-server's repository instead, joined to this stack ([below](#with-laterna-from-deploycompose)).
+Laterna itself runs from [`deploy/compose`](https://github.com/laterna-project/laterna/tree/develop/deploy/compose)
+of its own repository, with what goes around it there (HTTPS, single sign-on, monitoring, update
+notices, backups), and joins this stack's network. Each repository does one thing: Laterna and
+its surroundings there, getting the media here. The tests of each start both together.
 
 Use it for what you have the right to download: works in the public domain or under a free
 license, your own recordings, Linux images. A VPN hides your traffic from your provider; it does
@@ -19,7 +20,6 @@ not make a download legal.
 - [Folders](#folders)
 - [VPN](#vpn)
 - [Connecting the services](#connecting-the-services)
-- [With Laterna from deploy/compose](#with-laterna-from-deploycompose)
 - [Upgrading](#upgrading)
 - [Checking the files](#checking-the-files)
 
@@ -29,9 +29,8 @@ not make a download legal.
 
 | | Service | Page | |
 |---|---|---|---|
-| `compose.yaml` | Sonarr, Radarr, Prowlarr, Gluetun (VPN) | :8989, :7878, :9696 | base |
-| `modules/laterna.yaml` | Laterna, reading the media of the stack | :8096 | |
-| `modules/qbittorrent.yaml` | qBittorrent, only through the VPN | :8080 | torrents |
+| `compose.yaml` | Sonarr, Radarr, Prowlarr | :8989, :7878, :9696 | base |
+| `modules/qbittorrent.yaml` | qBittorrent behind Gluetun, the VPN | :8080 | torrents |
 | `modules/sabnzbd.yaml` | SABnzbd | :8085 | Usenet |
 | `modules/flaresolverr.yaml` | FlareSolverr, for indexers behind Cloudflare | | |
 | `modules/bazarr.yaml` | Bazarr, subtitles | :6767 | |
@@ -68,16 +67,40 @@ cp vpn.env.example vpn.env
    `SONARR_API_KEY`, `RADARR_API_KEY`, `PROWLARR_API_KEY`, and those of the modules you add
    (`SABNZBD_API_KEY`, `LIDARR_API_KEY`). They are set here rather than in each service's pages,
    so that the others can use them.
-3. In `vpn.env`: your VPN ([VPN](#vpn)).
-4. `COMPOSE_FILE` lists the modules: Laterna and qBittorrent by default.
+3. In `vpn.env`, with the `qbittorrent` module: your VPN ([VPN](#vpn)).
+4. `COMPOSE_FILE` lists the modules: qBittorrent by default.
 
 ```sh
 docker compose up -d
 ```
 
-The first start creates the folders of `DATA_DIR` that are missing, then
-[connect the services](#connecting-the-services). Your own changes go in `local.yaml`, last in
-`COMPOSE_FILE` (git ignores it), not in the files here.
+The first start creates the folders of `DATA_DIR` that are missing. Then Laterna, from its
+repository, next to this one:
+
+```sh
+git clone --depth 1 https://github.com/laterna-project/laterna
+cd laterna/deploy/compose
+cp .env.example .env
+```
+
+In that `.env`: `MEDIA_DIR` is `DATA_DIR/media`, and the `external-network` module joins this
+stack, plus any module of [`deploy/compose`](https://github.com/laterna-project/laterna/tree/develop/deploy/compose#modules)
+(HTTPS, single sign-on, monitoring...):
+
+```sh
+COMPOSE_FILE=compose.yaml:modules/external-network.yaml
+EXTERNAL_NETWORK=laterna-stack
+MEDIA_DIR=/srv/data/media
+```
+
+`docker compose up -d` there too (the stack first: Laterna joins its network). Laterna then
+reaches `http://sonarr:8989` and Sonarr reaches `http://laterna:8096`. Laterna sees the media at
+`/media`, Sonarr at `/data/media`: it matches them by itself. In Laterna, create the libraries
+`/media/shows`, `/media/movies`, `/media/music` and `/media/books`, then
+[connect the services](#connecting-the-services).
+
+Your own changes go in `local.yaml`, last in `COMPOSE_FILE` (git ignores it), not in the files
+here.
 
 ## Folders
 
@@ -97,8 +120,7 @@ DATA_DIR
 ```
 
 `DATA_DIR` must be one file system: two disks joined by Docker mounts break hardlinks. For several
-disks, pool them first (mergerfs, ZFS, Btrfs, a RAID). In Laterna, create the libraries
-`/data/media/shows`, `/data/media/movies`, `/data/media/music` and `/data/media/books`.
+disks, pool them first (mergerfs, ZFS, Btrfs, a RAID).
 
 ## VPN
 
@@ -159,31 +181,18 @@ The first time, in this order. Addresses are those of the Docker network.
    files and images it reads) and install its webhook at `http://laterna:8096`: it hears about
    each import at once.
 
-## With Laterna from deploy/compose
-
-The stack's network is called `laterna-stack`. In `deploy/compose` of the server's repository,
-leave `modules/laterna.yaml` out here, and there:
-
-```sh
-COMPOSE_FILE=compose.yaml:modules/external-network.yaml:...
-EXTERNAL_NETWORK=laterna-stack
-MEDIA_DIR=<DATA_DIR>/media
-```
-
-Laterna then reaches `http://sonarr:8989` and Sonarr reaches `http://laterna:8096`, as above.
-Laterna sees the media at `/media` there, Sonarr at `/data/media` here: it matches them by
-itself.
-
 ## Upgrading
 
-`docker compose pull && docker compose up -d`. The images follow their latest release, except
-Gluetun (v3), Recyclarr (8), Unpackerr (0) and Laterna (`LATERNA_VERSION`). The `diun` module of
-`deploy/compose` tells you when one changes. `git pull` brings the latest version of these files.
+`docker compose pull && docker compose up -d`, here and in `deploy/compose`. The images follow
+their latest release, except Gluetun (v3), Recyclarr (8) and Unpackerr (0). The `diun` module of
+`deploy/compose` tells you when any container of the machine, these included, has a newer image.
+`git pull` brings the latest version of these files.
 
 ## Checking the files
 
 [`test/test.sh`](test/test.sh) checks every module, then starts the whole stack with a WireGuard
-server of its own as the VPN, and checks:
+server of its own as the VPN, and Laterna from `deploy/compose` (its `develop` branch, or the
+folder in `LATERNA_COMPOSE`), and checks:
 
 - qBittorrent's traffic goes through the tunnel, and nothing goes out once the tunnel stops;
 - Gluetun's port forwarding command sets qBittorrent's port;
@@ -192,8 +201,8 @@ server of its own as the VPN, and checks:
   FlareSolverr, Recyclarr creates the TRaSH profiles, Laterna installs its webhook in Sonarr and
   Radarr.
 
-The CI runs it on each change and every week. A real provider's port forwarding is not part of
-it: it takes an account.
+The CI runs it on each change and every week; the server's CI runs it too on each change to
+`deploy/compose`. A real provider's port forwarding is not part of it: it takes an account.
 
 ```sh
 sh test/test.sh
