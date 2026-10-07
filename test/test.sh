@@ -1,24 +1,31 @@
 #!/bin/sh
 # Checks the stack: every module makes a valid configuration with the base, and the whole stack
-# starts and works together. The VPN is a WireGuard server of the test (test/vpn-server.yaml), used
-# by Gluetun as a "custom" provider: the tunnel, its firewall and the clients behind it run for
-# real. Then the services are connected to each other through their APIs, as README.md says to
-# do in their pages, and each connection is tried by the service that receives it.
+# starts and works together, with Laterna started from deploy/compose of its repository and joined
+# to the stack's network, as README.md says. The VPN is a WireGuard server of the test
+# (test/vpn-server.yaml), used by Gluetun as a "custom" provider: the tunnel, its firewall and the
+# clients behind it run for real. Then the services are connected to each other through their
+# APIs, as README.md says to do in their pages, and each connection is tried by the service that
+# receives it.
 #
 #   test/test.sh [config|run]...   (both by default)
 #
-# LATERNA_IMAGE and LATERNA_VERSION choose another image of Laterna than the published one.
+# LATERNA_COMPOSE is the deploy/compose folder to start Laterna from; by default, that of the
+# server repository's develop branch (LATERNA_REF), cloned. LATERNA_IMAGE and LATERNA_VERSION
+# choose another image of Laterna than the one deploy/compose uses.
 set -eu
 
 here=$(cd "$(dirname "$0")/.." && pwd)
 work=$(mktemp -d)
 project=laterna-stack-test
-modules="laterna qbittorrent sabnzbd bazarr lidarr lazylibrarian flaresolverr recyclarr unpackerr"
+modules="qbittorrent sabnzbd bazarr lidarr lazylibrarian flaresolverr recyclarr unpackerr"
 started=""
 cleanup() {
   status=$?
   if [ "$status" -ne 0 ] && [ -n "$started" ]; then
     (cd "$work" && stack logs --tail 40 >&2) || true
+  fi
+  if [ -f "$work/laterna/compose.yaml" ]; then
+    (cd "$work/laterna" && docker compose -p "$project-laterna" down -v >/dev/null 2>&1) || true
   fi
   if [ -f "$work/compose.yaml" ]; then
     (cd "$work" && stack down -v --remove-orphans >/dev/null 2>&1) || true
@@ -40,11 +47,9 @@ cp test/test.env .env
   echo "PROWLARR_API_KEY=$(key)"
   echo "LIDARR_API_KEY=$(key)"
   echo "SABNZBD_API_KEY=$(key)"
-  if [ -n "${LATERNA_IMAGE:-}" ]; then echo "LATERNA_IMAGE=$LATERNA_IMAGE"; fi
-  if [ -n "${LATERNA_VERSION:-}" ]; then echo "LATERNA_VERSION=$LATERNA_VERSION"; fi
 } >>.env
 cp vpn.env.example vpn.env
-mkdir -p test/data test/wireguard
+mkdir -p test/data test/wireguard laterna
 
 env_value() { sed -n "s/^$1=//p" .env | tail -n 1; }
 
@@ -127,6 +132,29 @@ vpn_received() {
   compose test/vpn-server -- exec -T vpn-server wg show wg0 transfer | awk '{s += $2} END {print s + 0}'
 }
 
+# laterna_up starts Laterna from deploy/compose, with its external-network module on the stack's
+# network and the stack's media as MEDIA_DIR: what README.md describes.
+laterna_up() {
+  if [ -n "${LATERNA_COMPOSE:-}" ]; then
+    cp -R "$LATERNA_COMPOSE/." laterna
+  else
+    git clone -q --depth 1 --branch "${LATERNA_REF:-develop}" https://github.com/laterna-project/laterna laterna-repo
+    cp -R laterna-repo/deploy/compose/. laterna
+  fi
+  {
+    echo "COMPOSE_FILE=compose.yaml:modules/external-network.yaml"
+    echo "EXTERNAL_NETWORK=laterna-stack-test"
+    echo "MEDIA_DIR=$work/test/data/media"
+    echo "LATERNA_PORT=18096"
+    if [ -n "${LATERNA_IMAGE:-}" ]; then echo "LATERNA_IMAGE=$LATERNA_IMAGE"; fi
+    if [ -n "${LATERNA_VERSION:-}" ]; then echo "LATERNA_VERSION=$LATERNA_VERSION"; fi
+  } >laterna/.env
+  (cd laterna && docker compose -p "$project-laterna" up -d --quiet-pull --wait --wait-timeout 120 >up.log 2>&1) || {
+    cat laterna/up.log >&2
+    return 1
+  }
+}
+
 run() {
   echo "run: VPN server"
   started=yes
@@ -145,12 +173,13 @@ WIREGUARD_PRESHARED_KEY=$(value PresharedKey)
 WIREGUARD_ADDRESSES=$(value Address)/32
 VPN
 
-  echo "run: the stack"
+  echo "run: the stack, then Laterna from deploy/compose"
   # shellcheck disable=SC2086
   stack up -d --quiet-pull --wait --wait-timeout 300 >up.log 2>&1 || {
     cat up.log >&2
     return 1
   }
+  laterna_up
 
   echo "check: downloads go through the tunnel"
   before=$(vpn_received)

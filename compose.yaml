@@ -1,6 +1,7 @@
-# The media stack around Laterna: Sonarr (series), Radarr (movies) and Prowlarr (indexers), with
-# Gluetun, the VPN that the download clients of the modules go through. Everyone sees DATA_DIR at
-# /data, so that an import is a hardlink or a rename, never a copy (README.md: folders).
+# The media stack around Laterna: Sonarr (series), Radarr (movies) and Prowlarr (indexers); the
+# download clients are modules. Everyone sees DATA_DIR at /data, so that an import is a hardlink or
+# a rename, never a copy (README.md: folders). Laterna runs from deploy/compose of its own
+# repository, joined to this stack's network (README.md).
 name: laterna-stack
 
 x-servarr: &servarr
@@ -20,22 +21,6 @@ services:
     volumes:
       - ./config/folders.sh:/folders.sh:ro
       - ${DATA_DIR:?set DATA_DIR in .env}:/data
-
-  gluetun:
-    image: qmcgaw/gluetun:v3
-    restart: unless-stopped
-    cap_add:
-      - NET_ADMIN
-    devices:
-      - /dev/net/tun:/dev/net/tun
-    environment:
-      TZ: ${TZ:-UTC}
-    env_file:
-      # The VPN provider and its credentials (vpn.env.example).
-      - path: ./vpn.env
-        required: true
-    volumes:
-      - gluetun:/gluetun
 
   prowlarr:
     <<: *servarr
@@ -80,11 +65,10 @@ services:
 
 networks:
   default:
-    # A fixed name, which a Laterna started elsewhere joins (README.md).
+    # A fixed name, which Laterna joins from deploy/compose (README.md).
     name: laterna-stack
 
 volumes:
-  gluetun:
   prowlarr:
   sonarr:
   radarr:
