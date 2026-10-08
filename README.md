@@ -51,8 +51,9 @@ Choices made here:
 ## Starting
 
 Docker with Compose 2.24.4 or later. Linux is the reference. Docker Desktop (Windows, macOS) runs
-the stack too, but hardlinks between downloads and media may not work on folders of the Windows or
-macOS disk: imports then copy.
+the stack too. On Windows, hardlinks work with `DATA_DIR` on an NTFS disk (`D:/data`, say), and
+`COMPOSE_FILE` takes `;` between files. On macOS, hardlinks are not checked yet: where they fail,
+imports copy.
 
 ```sh
 git clone https://github.com/laterna-project/laterna-stack
