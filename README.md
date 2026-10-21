@@ -137,7 +137,9 @@ Sonarr, Radarr and the others do not go through the VPN.
    P2P servers only, port forwarding on, countries to adjust.
 3. `docker compose up -d`, then `docker compose logs gluetun`: the public address, then
    `port forwarded is` and the port. Gluetun gives that port to qBittorrent, again each time it
-   changes.
+   changes. ProtonVPN drops the forwarding now and then, sometimes several times an hour:
+   qBittorrent stays on the tunnel and only misses incoming connections until the next port. The
+   `setPreferences` lines Gluetun logs as errors are the output of that command, not failures.
 
 **Other providers:** `vpn.env.example` has Private Internet Access (port forwarding too), AirVPN
 (a port forwarded in its client area), Mullvad (no port forwarding: fewer peers) and any WireGuard
